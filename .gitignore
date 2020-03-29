@@ -1,0 +1,5 @@
+# vscode
+/.vscode
+
+# project specific
+*.fzz
