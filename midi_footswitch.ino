@@ -59,11 +59,12 @@ void setup()
     button4.begin();
 
     // Only enable Serial for USB MIDI debugging
-    // Serial.begin(9600);
+    //Serial.begin(9600);
 
     // Send a patch reset on start
-    MIDI.sendProgramChange(0, 1);
+    //MIDI.sendProgramChange(0, 1);
 
+    // Start by displaying a dash
     byte displayPrint[3] = {B10111111, B10111111, B10111111};
     sr.setAll(displayPrint);
 }
@@ -96,7 +97,6 @@ void loop()
     switch (STATE)
     {
     case WAIT:
-        // display.showNumberDec(patchNum, true);
         if (button1.wasReleased())
             STATE = SHORT_1;
         else if (button2.wasReleased())
