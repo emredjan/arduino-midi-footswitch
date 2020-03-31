@@ -2,16 +2,19 @@
 #include <JC_Button.h>
 #include <ShiftRegister74HC595.h>
 
+#include <Wire.h>
+#include <Adafruit_SSD1306.h>
+
 MIDI_CREATE_DEFAULT_INSTANCE();
 
-const byte BUTTON_PINS[] = {A5, A4, A3, A2};
+const byte BUTTON_PINS[] = {12, 11, A3, A2};
 const byte LED_PINS[] = {7, 6, 5, 4};
 const byte NUM_BUTTONS = 4;
 
 const byte SR_NUM_REGISTERS = 3;
-const byte SR_SDI_PIN = 9;
-const byte SR_SCLK_PIN = 10;
-const byte SR_LOAD_PIN = 11;
+const byte SR_SDI_PIN = 8;
+const byte SR_SCLK_PIN = 9;
+const byte SR_LOAD_PIN = 10;
 
 const unsigned long LONG_PRESS = 750;
 
@@ -26,6 +29,15 @@ Button button4(BUTTON_PINS[3]);
 
 // create shift register object (number of shift registers, data pin, clock pin, latch pin)
 ShiftRegister74HC595<SR_NUM_REGISTERS> sr(SR_SDI_PIN, SR_SCLK_PIN, SR_LOAD_PIN);
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+bool command_1_sent = false;
+bool command_2_sent = false;
+bool command_3_sent = false;
+bool command_4_sent = false;
 
 byte numberB[] = {
     B11000000, //0
@@ -50,6 +62,14 @@ void setup()
     {
         pinMode(LED_PINS[i], OUTPUT);
     }
+
+    display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+    delay(500);
+    display.setTextSize(7);
+    display.setTextColor(WHITE);
+    display.clearDisplay();
+    setDisplay("RDY");
+    display.display();
 
     MIDI.begin(MIDI_CHANNEL_OMNI);
 
@@ -79,6 +99,8 @@ void loop()
         SHORT_2,
         SHORT_3,
         SHORT_4,
+        TO_LONG_1,
+        LONG_1,
         TO_LONG_3,
         LONG_3,
         TO_LONG_4,
@@ -88,6 +110,8 @@ void loop()
 
     static byte bankNum = 1;
     static byte newBankNum = 0;
+
+    static bool commandMode = false;
 
     button1.read();
     button2.read();
@@ -105,6 +129,8 @@ void loop()
             STATE = SHORT_3;
         else if (button4.wasReleased())
             STATE = SHORT_4;
+        else if (button1.pressedFor(LONG_PRESS))
+            STATE = TO_LONG_1;
         else if (button3.pressedFor(LONG_PRESS))
             STATE = TO_LONG_3;
         else if (button4.pressedFor(LONG_PRESS))
@@ -112,30 +138,72 @@ void loop()
         break;
 
     case SHORT_1:
-        callPreset(bankNum, 1);
+        if (commandMode)
+            callCommand(1);
+        else
+            callPreset(bankNum, 1);
         STATE = WAIT;
         break;
 
     case SHORT_2:
-        callPreset(bankNum, 2);
+        if (commandMode)
+            callCommand(2);
+        else
+            callPreset(bankNum, 2);
         STATE = WAIT;
         break;
 
     case SHORT_3:
-        callPreset(bankNum, 3);
+        if (commandMode)
+            callCommand(3);
+        else
+            callPreset(bankNum, 3);
         STATE = WAIT;
         break;
 
     case SHORT_4:
-        callPreset(bankNum, 4);
+        if (commandMode)
+            callCommand(4);
+        else
+            callPreset(bankNum, 4);
+        STATE = WAIT;
+        break;
+
+    case TO_LONG_1:
+        if (!commandMode)
+        {
+            setDisplay("CMD");
+            callCommand(0);
+        }
+        else
+        {
+            setDisplay("RDY");
+            callPreset(bankNum, 0);
+        }
+
+        if (button1.wasReleased())
+            STATE = LONG_1;
+        break;
+
+    case LONG_1:
+        commandMode = !commandMode;
         STATE = WAIT;
         break;
 
     case TO_LONG_3:
-        newBankNum = min(bankNum + 1, MAX_BANK);
-        callPreset(newBankNum, 0);
-        if (button3.wasReleased())
-            STATE = LONG_3;
+        if (commandMode)
+        {
+            if (button3.wasReleased())
+                callCommand(3);
+                STATE = WAIT;
+        }
+        else
+        {
+            newBankNum = min(bankNum + 1, MAX_BANK);
+            callPreset(newBankNum, 0);
+            if (button3.wasReleased())
+                STATE = LONG_3;
+        }
         break;
 
     case LONG_3:
@@ -144,10 +212,19 @@ void loop()
         break;
 
     case TO_LONG_4:
-        newBankNum = max(bankNum - 1, MIN_BANK);
-        callPreset(newBankNum, 0);
-        if (button4.wasReleased())
-            STATE = LONG_4;
+        if (commandMode)
+        {
+            if (button4.wasReleased())
+                callCommand(4);
+                STATE = WAIT;
+        }
+        else
+        {
+            newBankNum = max(bankNum - 1, MIN_BANK);
+            callPreset(newBankNum, 0);
+            if (button4.wasReleased())
+                STATE = LONG_4;
+        }
         break;
 
     case LONG_4:
@@ -155,6 +232,41 @@ void loop()
         STATE = WAIT;
         break;
     }
+}
+
+void callCommand(byte program)
+{
+
+    for (byte i = 0; i < NUM_BUTTONS; i++)
+    {
+        if ((i == program - 1) && program != 0)
+            digitalWrite(LED_PINS[i], HIGH);
+        else
+            digitalWrite(LED_PINS[i], LOW);
+    }
+
+    msgFlicker(FLICKER_FAST, 5, getNumberToPrint(0, program));
+
+    switch (program)
+    {
+    case 1:
+        command_1();
+        break;
+    case 2:
+        command_2();
+        break;
+    case 3:
+        command_3();
+        break;
+    case 4:
+        command_4();
+        break;
+    }
+
+    byte displayPrint[3];
+    for (int i = 0; i < 3; i++)
+        displayPrint[i] = getNumberToPrint(0, program)[i];
+    sr.setAll(displayPrint);
 }
 
 void callPreset(byte bank, byte program)
@@ -332,24 +444,36 @@ void callPreset(byte bank, byte program)
     sr.setAll(displayPrint);
 }
 
+void setDisplay(char *msg)
+{
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.println(msg);
+    display.display();
+}
+
 void preset_1_1()
 {
-    MIDI.sendProgramChange(1, 1);
+    MIDI.sendProgramChange(1, 16);
+    setDisplay("CLN");
 }
 
 void preset_1_2()
 {
-    MIDI.sendControlChange(24, 120, 1);
+    MIDI.sendProgramChange(2, 16);
+    setDisplay("CHR");
 }
 
 void preset_1_3()
 {
-    MIDI.sendNoteOn(53, 126, 1);
-    MIDI.sendNoteOff(53, 0, 1);
+    MIDI.sendProgramChange(3, 16);
+    setDisplay("DRV");
 }
 
 void preset_1_4()
 {
+    MIDI.sendProgramChange(4, 16);
+    setDisplay("WAH");
 }
 
 void preset_2_1()
@@ -366,14 +490,34 @@ void preset_2_3()
 
 void preset_2_4()
 {
+    MIDI.sendProgramChange(0, 16);
+    setDisplay("RST");
 }
 
 void preset_3_1()
 {
+    MIDI.sendProgramChange(111, 16);
+    MIDI.sendProgramChange(112, 16);
+    MIDI.sendProgramChange(113, 16);
+    MIDI.sendProgramChange(114, 16);
+    MIDI.sendProgramChange(115, 16);
+    MIDI.sendProgramChange(116, 16);
+    MIDI.sendProgramChange(117, 16);
+    MIDI.sendProgramChange(118, 16);
+    setDisplay("ON");
 }
 
 void preset_3_2()
 {
+    MIDI.sendProgramChange(101, 16);
+    MIDI.sendProgramChange(102, 16);
+    MIDI.sendProgramChange(103, 16);
+    MIDI.sendProgramChange(104, 16);
+    MIDI.sendProgramChange(105, 16);
+    MIDI.sendProgramChange(106, 16);
+    MIDI.sendProgramChange(107, 16);
+    MIDI.sendProgramChange(108, 16);
+    setDisplay("OFF");
 }
 
 void preset_3_3()
@@ -480,11 +624,54 @@ void preset_9_4()
 {
 }
 
+void command_1()
+{
+    if (!command_1_sent)
+        MIDI.sendProgramChange(111, 16);
+    else
+        MIDI.sendProgramChange(101, 16);
+    setDisplay("CM1");
+    command_1_sent = !command_1_sent;
+}
+
+void command_2()
+{
+    if (!command_2_sent)
+        MIDI.sendProgramChange(112, 16);
+    else
+        MIDI.sendProgramChange(102, 16);
+    setDisplay("CM2");
+    command_2_sent = !command_2_sent;
+}
+
+void command_3()
+{
+    if (!command_3_sent)
+        MIDI.sendProgramChange(113, 16);
+    else
+        MIDI.sendProgramChange(103, 16);
+    setDisplay("CM3");
+    command_3_sent = !command_3_sent;
+}
+
+void command_4()
+{
+    if (!command_4_sent)
+        MIDI.sendProgramChange(114, 16);
+    else
+        MIDI.sendProgramChange(104, 16);
+    setDisplay("CM4");
+    command_4_sent = !command_4_sent;
+}
+
 byte *getNumberToPrint(byte bank, byte program)
 {
     static byte numberToPrint[3];
 
-    numberToPrint[0] = numberB[bank];
+    if (bank == 0)
+        numberToPrint[0] = B11000110;
+    else
+        numberToPrint[0] = numberB[bank];
 
     // Print a dash in the middle
     numberToPrint[1] = B10111111;
