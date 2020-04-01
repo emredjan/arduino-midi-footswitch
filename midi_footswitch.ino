@@ -1,9 +1,9 @@
-#include <MIDI.h>
-#include <JC_Button.h>
-#include <ShiftRegister74HC595.h>
+#include <MIDI.h> // Provides MIDI functionality
+#include <JC_Button.h> // Provides precise button control
+#include <ShiftRegister74HC595.h> // Needed to drive 7-segment LED
 
-#include <Wire.h>
-#include <Adafruit_SSD1306.h>
+#include <Wire.h> // Needed to drive OLED display
+#include <Adafruit_SSD1306.h> // Needed to drive OLED display
 
 MIDI_CREATE_DEFAULT_INSTANCE();
 
@@ -174,6 +174,10 @@ void loop()
         {
             setDisplay("CMD");
             callCommand(0);
+            command_1_sent = false;
+            command_2_sent = false;
+            command_3_sent = false;
+            command_4_sent = false;
         }
         else
         {
