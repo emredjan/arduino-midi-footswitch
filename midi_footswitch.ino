@@ -1,15 +1,15 @@
-#include <MIDI.h> // Provides MIDI functionality
-#include <JC_Button.h> // Provides precise button control
+#include <MIDI.h>                 // Provides MIDI functionality
+#include <JC_Button.h>            // Provides precise button control
 #include <ShiftRegister74HC595.h> // Needed to drive 7-segment LED
 
-#include <Wire.h> // Needed to drive OLED display
+#include <Wire.h>             // Needed to drive OLED display
 #include <Adafruit_SSD1306.h> // Needed to drive OLED display
 
 MIDI_CREATE_DEFAULT_INSTANCE();
 
-const byte BUTTON_PINS[] = {12, 11, A3, A2};
+const byte BUTTON_PINS[] = {12, 11, A3, A2, A1};
 const byte LED_PINS[] = {7, 6, 5, 4};
-const byte NUM_BUTTONS = 4;
+const byte NUM_LEDS = 4;
 
 const byte SR_NUM_REGISTERS = 3;
 const byte SR_SDI_PIN = 8;
@@ -26,6 +26,7 @@ Button button1(BUTTON_PINS[0]);
 Button button2(BUTTON_PINS[1]);
 Button button3(BUTTON_PINS[2]);
 Button button4(BUTTON_PINS[3]);
+Button button5(BUTTON_PINS[4]);
 
 // create shift register object (number of shift registers, data pin, clock pin, latch pin)
 ShiftRegister74HC595<SR_NUM_REGISTERS> sr(SR_SDI_PIN, SR_SCLK_PIN, SR_LOAD_PIN);
@@ -38,6 +39,8 @@ bool command_1_sent = false;
 bool command_2_sent = false;
 bool command_3_sent = false;
 bool command_4_sent = false;
+bool command_5_sent = false;
+bool command_6_sent = false;
 
 byte numberB[] = {
     B11000000, //0
@@ -53,20 +56,21 @@ byte numberB[] = {
 };
 
 const byte MIN_BANK = 1;
-const byte MAX_BANK = 4;
+const byte MAX_BANK = 5;
 
 void setup()
 {
 
-    for (byte i = 0; i < NUM_BUTTONS; i++)
+    for (byte i = 0; i < NUM_LEDS; i++)
     {
         pinMode(LED_PINS[i], OUTPUT);
     }
 
     display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
     delay(500);
-    display.setTextSize(7);
+    display.setTextSize(5);
     display.setTextColor(WHITE);
+    display.cp437(true);
     display.clearDisplay();
     setDisplay("RDY");
     display.display();
@@ -77,6 +81,7 @@ void setup()
     button2.begin();
     button3.begin();
     button4.begin();
+    button5.begin();
 
     // Only enable Serial for USB MIDI debugging
     //Serial.begin(9600);
@@ -99,8 +104,11 @@ void loop()
         SHORT_2,
         SHORT_3,
         SHORT_4,
+        SHORT_5,
         TO_LONG_1,
         LONG_1,
+        TO_LONG_2,
+        LONG_2,
         TO_LONG_3,
         LONG_3,
         TO_LONG_4,
@@ -117,6 +125,7 @@ void loop()
     button2.read();
     button3.read();
     button4.read();
+    button5.read();
 
     switch (STATE)
     {
@@ -129,8 +138,12 @@ void loop()
             STATE = SHORT_3;
         else if (button4.wasReleased())
             STATE = SHORT_4;
+        else if (button5.wasReleased())
+            STATE = SHORT_5;
         else if (button1.pressedFor(LONG_PRESS))
             STATE = TO_LONG_1;
+        else if (button2.pressedFor(LONG_PRESS))
+            STATE = TO_LONG_2;
         else if (button3.pressedFor(LONG_PRESS))
             STATE = TO_LONG_3;
         else if (button4.pressedFor(LONG_PRESS))
@@ -169,6 +182,11 @@ void loop()
         STATE = WAIT;
         break;
 
+    case SHORT_5:
+        callCommand(5);
+        STATE = WAIT;
+        break;
+
     case TO_LONG_1:
         if (!commandMode)
         {
@@ -194,12 +212,23 @@ void loop()
         STATE = WAIT;
         break;
 
+    case TO_LONG_2:
+        callCommand(0);
+        if (button2.wasReleased())
+            STATE = LONG_2;
+        break;
+
+    case LONG_2:
+        callCommand(6);
+        STATE = WAIT;
+        break;
+
     case TO_LONG_3:
         if (commandMode)
         {
             if (button3.wasReleased())
                 callCommand(3);
-                STATE = WAIT;
+            STATE = WAIT;
         }
         else
         {
@@ -220,7 +249,7 @@ void loop()
         {
             if (button4.wasReleased())
                 callCommand(4);
-                STATE = WAIT;
+            STATE = WAIT;
         }
         else
         {
@@ -241,7 +270,7 @@ void loop()
 void callCommand(byte program)
 {
 
-    for (byte i = 0; i < NUM_BUTTONS; i++)
+    for (byte i = 0; i < NUM_LEDS; i++)
     {
         if ((i == program - 1) && program != 0)
             digitalWrite(LED_PINS[i], HIGH);
@@ -265,6 +294,12 @@ void callCommand(byte program)
     case 4:
         command_4();
         break;
+    case 5:
+        command_5();
+        break;
+    case 6:
+        command_6();
+        break;
     }
 
     byte displayPrint[3];
@@ -275,7 +310,7 @@ void callCommand(byte program)
 
 void callPreset(byte bank, byte program)
 {
-    for (byte i = 0; i < NUM_BUTTONS; i++)
+    for (byte i = 0; i < NUM_LEDS; i++)
     {
         if ((i == program - 1) && program != 0)
             digitalWrite(LED_PINS[i], HIGH);
@@ -284,6 +319,11 @@ void callPreset(byte bank, byte program)
     }
 
     msgFlicker(FLICKER_FAST, 5, getNumberToPrint(bank, program));
+
+    byte displayPrint[3];
+    for (int i = 0; i < 3; i++)
+        displayPrint[i] = getNumberToPrint(bank, program)[i];
+    sr.setAll(displayPrint);
 
     switch (bank)
     {
@@ -442,18 +482,12 @@ void callPreset(byte bank, byte program)
         break;
     }
 
-    byte displayPrint[3];
-    for (int i = 0; i < 3; i++)
-        displayPrint[i] = getNumberToPrint(bank, program)[i];
-    sr.setAll(displayPrint);
-}
-
-void setDisplay(char *msg)
-{
-    display.clearDisplay();
-    display.setCursor(0, 0);
-    display.println(msg);
-    display.display();
+    command_1_sent = false;
+    command_2_sent = false;
+    command_3_sent = false;
+    command_4_sent = false;
+    command_5_sent = false;
+    command_6_sent = false;
 }
 
 void preset_1_1()
@@ -465,7 +499,7 @@ void preset_1_1()
 void preset_1_2()
 {
     MIDI.sendProgramChange(2, 16);
-    setDisplay("CHR");
+    setDisplay("CRCH");
 }
 
 void preset_1_3()
@@ -477,7 +511,7 @@ void preset_1_3()
 void preset_1_4()
 {
     MIDI.sendProgramChange(4, 16);
-    setDisplay("WAH");
+    setDisplay("LEAD");
 }
 
 void preset_2_1()
@@ -494,34 +528,14 @@ void preset_2_3()
 
 void preset_2_4()
 {
-    MIDI.sendProgramChange(0, 16);
-    setDisplay("RST");
 }
 
 void preset_3_1()
 {
-    MIDI.sendProgramChange(111, 16);
-    MIDI.sendProgramChange(112, 16);
-    MIDI.sendProgramChange(113, 16);
-    MIDI.sendProgramChange(114, 16);
-    MIDI.sendProgramChange(115, 16);
-    MIDI.sendProgramChange(116, 16);
-    MIDI.sendProgramChange(117, 16);
-    MIDI.sendProgramChange(118, 16);
-    setDisplay("ON");
 }
 
 void preset_3_2()
 {
-    MIDI.sendProgramChange(101, 16);
-    MIDI.sendProgramChange(102, 16);
-    MIDI.sendProgramChange(103, 16);
-    MIDI.sendProgramChange(104, 16);
-    MIDI.sendProgramChange(105, 16);
-    MIDI.sendProgramChange(106, 16);
-    MIDI.sendProgramChange(107, 16);
-    MIDI.sendProgramChange(108, 16);
-    setDisplay("OFF");
 }
 
 void preset_3_3()
@@ -550,10 +564,28 @@ void preset_4_4()
 
 void preset_5_1()
 {
+    MIDI.sendProgramChange(111, 16);
+    MIDI.sendProgramChange(112, 16);
+    MIDI.sendProgramChange(113, 16);
+    MIDI.sendProgramChange(114, 16);
+    MIDI.sendProgramChange(115, 16);
+    MIDI.sendProgramChange(116, 16);
+    MIDI.sendProgramChange(117, 16);
+    MIDI.sendProgramChange(118, 16);
+    setDisplay("SW ON");
 }
 
 void preset_5_2()
 {
+    MIDI.sendProgramChange(101, 16);
+    MIDI.sendProgramChange(102, 16);
+    MIDI.sendProgramChange(103, 16);
+    MIDI.sendProgramChange(104, 16);
+    MIDI.sendProgramChange(105, 16);
+    MIDI.sendProgramChange(106, 16);
+    MIDI.sendProgramChange(107, 16);
+    MIDI.sendProgramChange(108, 16);
+    setDisplay("SW OF");
 }
 
 void preset_5_3()
@@ -562,6 +594,8 @@ void preset_5_3()
 
 void preset_5_4()
 {
+    MIDI.sendProgramChange(0, 16);
+    setDisplay("SW RST");
 }
 
 void preset_6_1()
@@ -631,41 +665,98 @@ void preset_9_4()
 void command_1()
 {
     if (!command_1_sent)
-        MIDI.sendProgramChange(111, 16);
+    {
+        setDisplay(F("CHRS ON"), 3);
+    }
     else
-        MIDI.sendProgramChange(101, 16);
-    setDisplay("CM1");
+    {
+        setDisplay(F("CHRS OF"), 3);
+    }
+
     command_1_sent = !command_1_sent;
 }
 
 void command_2()
 {
     if (!command_2_sent)
-        MIDI.sendProgramChange(112, 16);
+    {
+        setDisplay(F("PHSR ON"), 4);
+    }
     else
-        MIDI.sendProgramChange(102, 16);
-    setDisplay("CM2");
+    {
+        setDisplay(F("PHSR OF"), 4);
+    }
     command_2_sent = !command_2_sent;
 }
 
 void command_3()
 {
     if (!command_3_sent)
-        MIDI.sendProgramChange(113, 16);
+    {
+        setDisplay(F("RTRY ON"), 2);
+    }
     else
-        MIDI.sendProgramChange(103, 16);
-    setDisplay("CM3");
+    {
+        setDisplay(F("RTRY OF"), 2);
+    }
     command_3_sent = !command_3_sent;
 }
 
 void command_4()
 {
     if (!command_4_sent)
-        MIDI.sendProgramChange(114, 16);
+    {
+        setDisplay(F("TREM ON"), 3);
+    }
     else
-        MIDI.sendProgramChange(104, 16);
-    setDisplay("CM4");
+    {
+        setDisplay(F("TREM OF"), 3);
+    }
     command_4_sent = !command_4_sent;
+}
+
+void command_5()
+{
+    if (!command_5_sent)
+    {
+        setDisplay(F("WAH ON"), 3);
+    }
+    else
+    {
+        setDisplay(F("WAH OF"), 3);
+    }
+    command_5_sent = !command_5_sent;
+}
+
+void command_6()
+{
+    if (!command_6_sent)
+    {
+        setDisplay(F("BOOST ON"), 3);
+    }
+    else
+    {
+        setDisplay(F("BOOST OF"), 3);
+    }
+    command_6_sent = !command_6_sent;
+}
+
+
+void setDisplay(char *msg)
+{
+    display.clearDisplay();
+    display.setCursor(5, 15);
+    display.print(msg);
+    display.display();
+}
+
+void setDisplay(const __FlashStringHelper *msg, byte textSize_)
+{
+    display.clearDisplay();
+    display.setTextSize(textSize_);
+    display.setCursor(5, 15);
+    display.print(msg);
+    display.display();
 }
 
 byte *getNumberToPrint(byte bank, byte program)
