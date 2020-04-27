@@ -7,7 +7,7 @@
 
 MIDI_CREATE_DEFAULT_INSTANCE();
 
-const byte BUTTON_PINS[] = {12, 11, A3, A2, A1};
+const byte BUTTON_PINS[] = {12, 11, A3, A2, A1, A0};
 const byte LED_PINS[] = {7, 6, 5, 4};
 const byte NUM_LEDS = 4;
 
@@ -27,6 +27,7 @@ Button button2(BUTTON_PINS[1]);
 Button button3(BUTTON_PINS[2]);
 Button button4(BUTTON_PINS[3]);
 Button button5(BUTTON_PINS[4]);
+Button button6(BUTTON_PINS[5]);
 
 // create shift register object (number of shift registers, data pin, clock pin, latch pin)
 ShiftRegister74HC595<SR_NUM_REGISTERS> sr(SR_SDI_PIN, SR_SCLK_PIN, SR_LOAD_PIN);
@@ -41,6 +42,7 @@ bool command_3_sent = false;
 bool command_4_sent = false;
 bool command_5_sent = false;
 bool command_6_sent = false;
+bool command_7_sent = false;
 
 byte numberB[] = {
     B11000000, //0
@@ -81,6 +83,7 @@ void setup()
     button3.begin();
     button4.begin();
     button5.begin();
+    button6.begin();
 
     // Only enable Serial for USB MIDI debugging
     //Serial.begin(9600);
@@ -104,6 +107,7 @@ void loop()
         SHORT_3,
         SHORT_4,
         SHORT_5,
+        SHORT_6,
         TO_LONG_1,
         LONG_1,
         TO_LONG_2,
@@ -125,6 +129,7 @@ void loop()
     button3.read();
     button4.read();
     button5.read();
+    button6.read();
 
     switch (STATE)
     {
@@ -139,6 +144,8 @@ void loop()
             STATE = SHORT_4;
         else if (button5.wasReleased())
             STATE = SHORT_5;
+        else if (button6.wasReleased())
+            STATE = SHORT_6;
         else if (button1.pressedFor(LONG_PRESS))
             STATE = TO_LONG_1;
         else if (button2.pressedFor(LONG_PRESS))
@@ -186,6 +193,11 @@ void loop()
         STATE = WAIT;
         break;
 
+    case SHORT_6:
+        callCommand(6);
+        STATE = WAIT;
+        break;
+
     case TO_LONG_1:
         if (!commandMode)
         {
@@ -218,7 +230,7 @@ void loop()
         break;
 
     case LONG_2:
-        callCommand(6);
+        callCommand(7);
         STATE = WAIT;
         break;
 
@@ -298,6 +310,9 @@ void callCommand(byte program)
         break;
     case 6:
         command_6();
+        break;
+    case 7:
+        command_7();
         break;
     }
 
@@ -487,6 +502,7 @@ void callPreset(byte bank, byte program)
     command_4_sent = false;
     command_5_sent = false;
     command_6_sent = false;
+    command_7_sent = false;
 }
 
 void preset_1_1()
@@ -824,7 +840,7 @@ void command_2()
 {
     if (!command_2_sent)
     {
-        MIDI.sendProgramChange(3, 1); // ModFactor Bypass
+        MIDI.sendProgramChange(3, 1); // ModFactor Phaser
         setDisplay(F("PHASR"), F("ON"), 4);
     }
     else
@@ -839,7 +855,7 @@ void command_3()
 {
     if (!command_3_sent)
     {
-        MIDI.sendProgramChange(11, 1); // ModFactor Bypass
+        MIDI.sendProgramChange(11, 1); // ModFactor Rotary
         setDisplay(F("ROTRY"), F("ON"), 4);
     }
     else
@@ -854,7 +870,7 @@ void command_4()
 {
     if (!command_4_sent)
     {
-        MIDI.sendProgramChange(13, 1); // ModFactor Bypass
+        MIDI.sendProgramChange(13, 1); // ModFactor Tremolo
         setDisplay(F("TREM"), F("ON"), 4);
     }
     else
@@ -869,7 +885,7 @@ void command_5()
 {
     if (!command_5_sent)
     {
-        MIDI.sendProgramChange(5, 1); // ModFactor Bypass
+        MIDI.sendProgramChange(5, 1); // ModFactor Wah
         setDisplay(F("WAH"), F("ON"), 4);
     }
     else
@@ -884,6 +900,21 @@ void command_6()
 {
     if (!command_6_sent)
     {
+        MIDI.sendProgramChange(7, 1); // ModFactor Flanger
+        setDisplay(F("FLNGR"), F("ON"), 4);
+    }
+    else
+    {
+        MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+        setDisplay(F("FLNGR"), F("OFF"), 4);
+    }
+    command_6_sent = !command_6_sent;
+}
+
+void command_7()
+{
+    if (!command_7_sent)
+    {
         MIDI.sendProgramChange(113, 16); // Booster
         setDisplay(F("BOOST"), F("ON"), 4);
     }
@@ -892,7 +923,7 @@ void command_6()
         MIDI.sendProgramChange(103, 16); // Booster
         setDisplay(F("BOOST"), F("OFF"), 4);
     }
-    command_6_sent = !command_6_sent;
+    command_7_sent = !command_7_sent;
 }
 
 void setDisplay(const __FlashStringHelper *msg, byte textSize_)
