@@ -68,11 +68,10 @@ void setup()
 
     display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
     delay(500);
-    display.setTextSize(5);
     display.setTextColor(WHITE);
     display.cp437(true);
     display.clearDisplay();
-    setDisplay("RDY");
+    setDisplay(F("READY"), 4);
     display.display();
 
     MIDI.begin(MIDI_CHANNEL_OMNI);
@@ -190,7 +189,7 @@ void loop()
     case TO_LONG_1:
         if (!commandMode)
         {
-            setDisplay("CMD");
+            setDisplay(F("CMD"), 5);
             callCommand(0);
             command_1_sent = false;
             command_2_sent = false;
@@ -199,7 +198,7 @@ void loop()
         }
         else
         {
-            setDisplay("RDY");
+            setDisplay(F("READY"), 4);
             callPreset(bankNum, 0);
         }
 
@@ -492,110 +491,254 @@ void callPreset(byte bank, byte program)
 
 void preset_1_1()
 {
-    MIDI.sendProgramChange(1, 16);
-    setDisplay("CLN");
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(102, 16); // 0 Compressor
+    MIDI.sendProgramChange(103, 16); // 0 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(105, 16); // 0 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(0, 1); // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    setDisplay(F("CLEAN"), F("GENRC"), 4);
 }
 
 void preset_1_2()
 {
-    MIDI.sendProgramChange(2, 16);
-    setDisplay("CRCH");
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, 16); // 1 Compressor
+    MIDI.sendProgramChange(103, 16); // 0 Booster
+    MIDI.sendProgramChange(114, 16); // 1 Zendrive
+    MIDI.sendProgramChange(105, 16); // 0 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(0, 1); // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    setDisplay(F("CRNCH"), F("GENRC"), 4);
 }
 
 void preset_1_3()
 {
-    MIDI.sendProgramChange(3, 16);
-    setDisplay("DRV");
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(102, 16); // 0 Compressor
+    MIDI.sendProgramChange(103, 16); // 0 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(115, 16); // 1 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(0, 1); // ModFactor Volume Pedal
+    MIDI.sendProgramChange(2 - 1, 2); // EQ MID Drop
+    setDisplay(F("DRIVE"), F("GENRC"), 4);
 }
 
 void preset_1_4()
 {
-    MIDI.sendProgramChange(4, 16);
-    setDisplay("LEAD");
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, 16); // 1 Compressor
+    MIDI.sendProgramChange(113, 16); // 1 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(115, 16); // 1 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(0, 1); // ModFactor Volume Pedal
+    MIDI.sendProgramChange(1 - 1, 2); // EQ Lead Boost
+    setDisplay(F("LEAD"), F("GENRC"), 4);
 }
 
 void preset_2_1()
 {
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, 16); // 1 Compressor
+    MIDI.sendProgramChange(113, 16); // 1 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(105, 16); // 0 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(0, 1); // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    setDisplay(F("CLEAN"), F("LOW G"), 4);
 }
 
 void preset_2_2()
 {
+    MIDI.sendProgramChange(111, 16); // 1 Acoustic Sim
+    MIDI.sendProgramChange(112, 16); // 1 Compressor
+    MIDI.sendProgramChange(103, 16); // 0 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(105, 16); // 0 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(0, 1); // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    setDisplay(F("ACSTC"), F("LOW G"), 4);
 }
 
 void preset_2_3()
 {
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, 16); // 1 Compressor
+    MIDI.sendProgramChange(103, 16); // 0 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(115, 16); // 1 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(0, 1); // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    setDisplay(F("DRIVE"), F("LOW G"), 4);
 }
 
 void preset_2_4()
 {
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, 16); // 1 Compressor
+    MIDI.sendProgramChange(113, 16); // 1 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(115, 16); // 1 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(0, 1); // ModFactor Volume Pedal
+    MIDI.sendProgramChange(1 - 1, 2); // EQ Lead Boost
+    setDisplay(F("LEAD"), F("LOW G"), 4);
 }
 
 void preset_3_1()
 {
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, 16); // 1 Compressor
+    MIDI.sendProgramChange(113, 16); // 1 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(105, 16); // 0 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(0, 1); // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    setDisplay(F("CLEAN"), F("HI G"), 4);
 }
 
 void preset_3_2()
 {
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, 16); // 1 Compressor
+    MIDI.sendProgramChange(103, 16); // 0 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(115, 16); // 1 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(0, 1); // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    setDisplay(F("CRNCH"), F("HI G"), 4);
 }
 
 void preset_3_3()
 {
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(102, 16); // 0 Compressor
+    MIDI.sendProgramChange(103, 16); // 0 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(105, 16); // 0 CrunchBox
+    MIDI.sendProgramChange(116, 16); // 1 BE-OD
+    MIDI.sendProgramChange(0, 1); // ModFactor Volume Pedal
+    MIDI.sendProgramChange(2 - 1, 2); // EQ Mid Drop
+    setDisplay(F("DRIVE"), F("HI G"), 4);
 }
 
 void preset_3_4()
 {
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, 16); // 1 Compressor
+    MIDI.sendProgramChange(113, 16); // 1 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(105, 16); // 0 CrunchBox
+    MIDI.sendProgramChange(116, 16); // 1 BE-OD
+    MIDI.sendProgramChange(0, 1); // ModFactor Volume Pedal
+    MIDI.sendProgramChange(1 - 1, 2); // EQ Lead Boost
+    setDisplay(F("LEAD"), F("HI G"), 4);
 }
 
 void preset_4_1()
 {
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(102, 16); // 0 Compressor
+    MIDI.sendProgramChange(103, 16); // 0 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(105, 16); // 0 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(0, 1); // ModFactor Volume Pedal
+    MIDI.sendProgramChange(3 - 1, 2); // EQ Sparkle
+    setDisplay(F("CLEAN"), F("F/POP"), 4);
 }
 
 void preset_4_2()
 {
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, 16); // 1 Compressor
+    MIDI.sendProgramChange(103, 16); // 0 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(105, 16); // 0 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(0, 1); // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    setDisplay(F("SQSHD"), F("F/POP"), 4);
 }
 
 void preset_4_3()
 {
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, 16); // 1 Compressor
+    MIDI.sendProgramChange(103, 16); // 0 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(105, 16); // 0 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(9, 1); // ModFactor Auto Filter
+    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    setDisplay(F("F WAH"), F("F/POP"), 4);
 }
 
 void preset_4_4()
 {
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(102, 16); // 1 Compressor
+    MIDI.sendProgramChange(103, 16); // 1 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(105, 16); // 0 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(4, 1); // ModFactor Uni-Vibe
+    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    setDisplay(F("PHASD"), F("F/POP"), 4);
 }
 
 void preset_5_1()
 {
-    MIDI.sendProgramChange(111, 16);
-    MIDI.sendProgramChange(112, 16);
-    MIDI.sendProgramChange(113, 16);
-    MIDI.sendProgramChange(114, 16);
-    MIDI.sendProgramChange(115, 16);
-    MIDI.sendProgramChange(116, 16);
-    MIDI.sendProgramChange(117, 16);
-    MIDI.sendProgramChange(118, 16);
-    setDisplay("SW ON");
+    MIDI.sendProgramChange(111, 16); // 1 Acoustic Sim
+    MIDI.sendProgramChange(112, 16); // 1 Compressor
+    MIDI.sendProgramChange(113, 16); // 1 Booster
+    MIDI.sendProgramChange(114, 16); // 1 Zendrive
+    MIDI.sendProgramChange(115, 16); // 1 CrunchBox
+    MIDI.sendProgramChange(116, 16); // 1 BE-OD
+    MIDI.sendProgramChange(117, 16); // 1 Switch 1
+    MIDI.sendProgramChange(118, 16); // 1 Switch 2
+    MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    setDisplay(F("SWTCH"), F("ALLON"), 4);
 }
 
 void preset_5_2()
 {
-    MIDI.sendProgramChange(101, 16);
-    MIDI.sendProgramChange(102, 16);
-    MIDI.sendProgramChange(103, 16);
-    MIDI.sendProgramChange(104, 16);
-    MIDI.sendProgramChange(105, 16);
-    MIDI.sendProgramChange(106, 16);
-    MIDI.sendProgramChange(107, 16);
-    MIDI.sendProgramChange(108, 16);
-    setDisplay("SW OF");
+    MIDI.sendProgramChange(101, 16); // 0 Acoustic Sim
+    MIDI.sendProgramChange(102, 16); // 0 Compressor
+    MIDI.sendProgramChange(103, 16); // 0 Booster
+    MIDI.sendProgramChange(104, 16); // 0 Zendrive
+    MIDI.sendProgramChange(105, 16); // 0 CrunchBox
+    MIDI.sendProgramChange(106, 16); // 0 BE-OD
+    MIDI.sendProgramChange(107, 16); // 0 Switch 1
+    MIDI.sendProgramChange(108, 16); // 0 Switch 2
+    MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    setDisplay(F("SWTCH"), F("ALLOFF"), 4);
 }
 
 void preset_5_3()
 {
+    MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
 }
 
 void preset_5_4()
 {
-    MIDI.sendProgramChange(0, 16);
-    setDisplay("SW RST");
+    MIDI.sendProgramChange(0, 16); // Switcher Reset
+    MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    setDisplay(F("SWTCH"), F("RESET"), 4);
 }
 
 void preset_6_1()
@@ -666,13 +809,14 @@ void command_1()
 {
     if (!command_1_sent)
     {
-        setDisplay(F("CHRS ON"), 3);
+        MIDI.sendProgramChange(2, 1); // ModFactor Chorus
+        setDisplay(F("CHORS"), F("ON"), 4);
     }
     else
     {
-        setDisplay(F("CHRS OF"), 3);
+        MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+        setDisplay(F("CHORS"), F("OFF"), 4);
     }
-
     command_1_sent = !command_1_sent;
 }
 
@@ -680,11 +824,13 @@ void command_2()
 {
     if (!command_2_sent)
     {
-        setDisplay(F("PHSR ON"), 4);
+        MIDI.sendProgramChange(3, 1); // ModFactor Bypass
+        setDisplay(F("PHASR"), F("ON"), 4);
     }
     else
     {
-        setDisplay(F("PHSR OF"), 4);
+        MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+        setDisplay(F("PHASR"), F("OFF"), 4);
     }
     command_2_sent = !command_2_sent;
 }
@@ -693,11 +839,13 @@ void command_3()
 {
     if (!command_3_sent)
     {
-        setDisplay(F("RTRY ON"), 2);
+        MIDI.sendProgramChange(11, 1); // ModFactor Bypass
+        setDisplay(F("ROTRY"), F("ON"), 4);
     }
     else
     {
-        setDisplay(F("RTRY OF"), 2);
+        MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+        setDisplay(F("ROTRY"), F("OFF"), 4);
     }
     command_3_sent = !command_3_sent;
 }
@@ -706,11 +854,13 @@ void command_4()
 {
     if (!command_4_sent)
     {
-        setDisplay(F("TREM ON"), 3);
+        MIDI.sendProgramChange(13, 1); // ModFactor Bypass
+        setDisplay(F("TREM"), F("ON"), 4);
     }
     else
     {
-        setDisplay(F("TREM OF"), 3);
+        MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+        setDisplay(F("TREM"), F("OFF"), 4);
     }
     command_4_sent = !command_4_sent;
 }
@@ -719,11 +869,13 @@ void command_5()
 {
     if (!command_5_sent)
     {
-        setDisplay(F("WAH ON"), 3);
+        MIDI.sendProgramChange(5, 1); // ModFactor Bypass
+        setDisplay(F("WAH"), F("ON"), 4);
     }
     else
     {
-        setDisplay(F("WAH OF"), 3);
+        MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+        setDisplay(F("WAH"), F("OFF"), 4);
     }
     command_5_sent = !command_5_sent;
 }
@@ -732,22 +884,15 @@ void command_6()
 {
     if (!command_6_sent)
     {
-        setDisplay(F("BOOST ON"), 3);
+        MIDI.sendProgramChange(113, 16); // Booster
+        setDisplay(F("BOOST"), F("ON"), 4);
     }
     else
     {
-        setDisplay(F("BOOST OF"), 3);
+        MIDI.sendProgramChange(103, 16); // Booster
+        setDisplay(F("BOOST"), F("OFF"), 4);
     }
     command_6_sent = !command_6_sent;
-}
-
-
-void setDisplay(char *msg)
-{
-    display.clearDisplay();
-    display.setCursor(5, 15);
-    display.print(msg);
-    display.display();
 }
 
 void setDisplay(const __FlashStringHelper *msg, byte textSize_)
@@ -756,6 +901,18 @@ void setDisplay(const __FlashStringHelper *msg, byte textSize_)
     display.setTextSize(textSize_);
     display.setCursor(5, 15);
     display.print(msg);
+    display.display();
+}
+
+void setDisplay(const __FlashStringHelper *msg1, const __FlashStringHelper *msg2, byte textSize_)
+{
+    display.clearDisplay();
+    display.setTextSize(textSize_);
+    display.setCursor(5, 5);
+    display.print(msg1);
+    display.setTextSize(textSize_ - 1);
+    display.setCursor(5, 40);
+    display.print(msg2);
     display.display();
 }
 
