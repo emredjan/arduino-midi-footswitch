@@ -23,6 +23,11 @@ const byte SR_SDI_PIN = 8;
 const byte SR_SCLK_PIN = 9;
 const byte SR_LOAD_PIN = 10;
 
+const byte SW_RELAYS_USED[] = {1, 2, 3, 6};
+const byte SW_RELAYS_UNUSED[] = {4, 5, 7, 8};
+const byte NUM_RELAYS_USED = 4;
+const byte NUM_RELAYS_UNUSED = 4;
+
 const unsigned long LONG_PRESS = 750;
 
 const unsigned long FLICKER_NONE = 300;
@@ -43,15 +48,11 @@ ShiftRegister74HC595<SR_NUM_REGISTERS> sr(SR_SDI_PIN, SR_SCLK_PIN, SR_LOAD_PIN);
 #define SCREEN_HEIGHT 64
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
-bool command_1_sent = false;
-bool command_2_sent = false;
-bool command_3_sent = false;
-bool command_4_sent = false;
-bool command_5_sent = false;
-bool command_6_sent = false;
-bool command_7_sent = false;
+bool command_sent[7] = {0, 0, 0, 0, 0, 0, 0};
 
 bool expressionEnabled = false;
+byte expressionCC = 100;
+byte expressionChannel = 2;
 
 byte numberB[] = {
     B11000000, //0
@@ -69,6 +70,20 @@ byte numberB[] = {
 const byte MIN_BANK = 1;
 const byte MAX_BANK = 5;
 
+/*
+    Channel  1: Eventide ModFactor
+    Channel  2: Strymon Iridium
+    *Channel  3: Strymon Compadre
+    Channel  4: Source Audio Programmable EQ
+    *Channel  5: Source Audio Collider
+    Channel 16: MIDI Switcher
+*/
+
+const byte CH_MODFACTOR = 1;
+const byte CH_IRIDIUM = 2;
+const byte CH_EQ = 4;
+const byte CH_SWITCHER = 16;
+
 void setup()
 {
 
@@ -76,9 +91,7 @@ void setup()
     expressionEnabled = false;
 
     for (byte i = 0; i < NUM_LEDS; i++)
-    {
         pinMode(LED_PINS[i], OUTPUT);
-    }
 
     display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
     delay(500);
@@ -100,8 +113,9 @@ void setup()
     // Only enable Serial for USB MIDI debugging
     //Serial.begin(9600);
 
-    // Send a patch reset on start
-    //MIDI.sendProgramChange(0, 1);
+    // Disable Unused Switcher Relays
+    for (byte i = 0; i < NUM_RELAYS_UNUSED; i++)
+        MIDI.sendProgramChange(100 + SW_RELAYS_UNUSED[i], CH_SWITCHER);
 
     // Start by displaying a dash
     byte displayPrint[3] = {B10111111, B10111111, B10111111};
@@ -144,7 +158,7 @@ void loop()
     button6.read();
 
     if (expressionEnabled)
-        handleExpression(7, 1);
+        handleExpression(expressionCC, expressionChannel);
 
     switch (STATE)
     {
@@ -218,10 +232,8 @@ void loop()
         {
             setDisplay(F("CMD"), 5);
             callCommand(0);
-            command_1_sent = false;
-            command_2_sent = false;
-            command_3_sent = false;
-            command_4_sent = false;
+            for (byte i = 0; i < 4; i++)
+                command_sent[i] = false;
         }
         else
         {
@@ -511,264 +523,244 @@ void callPreset(byte bank, byte program)
         break;
     }
 
-    command_1_sent = false;
-    command_2_sent = false;
-    command_3_sent = false;
-    command_4_sent = false;
-    command_5_sent = false;
-    command_6_sent = false;
-    command_7_sent = false;
+    for (byte i = 0; i < 7; i++)
+        command_sent[i] = false;
+
 }
 
 void preset_1_1()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(102, 16);  // 0 Compressor
-    MIDI.sendProgramChange(103, 16);  // 0 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(105, 16);  // 0 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(0, 1);     // ModFactor Volume Pedal
-    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(102, CH_SWITCHER);  // 0 Compressor
+    MIDI.sendProgramChange(103, CH_SWITCHER);  // 0 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
+
     setDisplay(F("CLEAN"), F("GENRC"), 4);
 }
 
 void preset_1_2()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(112, 16);  // 1 Compressor
-    MIDI.sendProgramChange(103, 16);  // 0 Booster
-    MIDI.sendProgramChange(114, 16);  // 1 Zendrive
-    MIDI.sendProgramChange(105, 16);  // 0 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(0, 1);     // ModFactor Volume Pedal
-    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, CH_SWITCHER);  // 1 Compressor
+    MIDI.sendProgramChange(103, CH_SWITCHER);  // 0 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
+
     setDisplay(F("CRNCH"), F("GENRC"), 4);
 }
 
 void preset_1_3()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(102, 16);  // 0 Compressor
-    MIDI.sendProgramChange(103, 16);  // 0 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(115, 16);  // 1 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(0, 1);     // ModFactor Volume Pedal
-    MIDI.sendProgramChange(2 - 1, 2); // EQ MID Drop
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(102, CH_SWITCHER);  // 0 Compressor
+    MIDI.sendProgramChange(103, CH_SWITCHER);  // 0 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
+    MIDI.sendProgramChange(2 - 1, CH_EQ);      // EQ MID Drop
+
     setDisplay(F("DRIVE"), F("GENRC"), 4);
 }
 
 void preset_1_4()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(112, 16);  // 1 Compressor
-    MIDI.sendProgramChange(113, 16);  // 1 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(115, 16);  // 1 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(0, 1);     // ModFactor Volume Pedal
-    MIDI.sendProgramChange(1 - 1, 2); // EQ Lead Boost
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, CH_SWITCHER);  // 1 Compressor
+    MIDI.sendProgramChange(113, CH_SWITCHER);  // 1 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
+    MIDI.sendProgramChange(1 - 1, CH_EQ);      // EQ Lead Boost
+
     setDisplay(F("LEAD"), F("GENRC"), 4);
 }
 
 void preset_2_1()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(112, 16);  // 1 Compressor
-    MIDI.sendProgramChange(113, 16);  // 1 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(105, 16);  // 0 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(0, 1);     // ModFactor Volume Pedal
-    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, CH_SWITCHER);  // 1 Compressor
+    MIDI.sendProgramChange(113, CH_SWITCHER);  // 1 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
+
     setDisplay(F("CLEAN"), F("LOW G"), 4);
 }
 
 void preset_2_2()
 {
-    MIDI.sendProgramChange(111, 16);  // 1 Acoustic Sim
-    MIDI.sendProgramChange(112, 16);  // 1 Compressor
-    MIDI.sendProgramChange(103, 16);  // 0 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(105, 16);  // 0 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(0, 1);     // ModFactor Volume Pedal
-    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    MIDI.sendProgramChange(111, CH_SWITCHER);  // 1 Acoustic Sim
+    MIDI.sendProgramChange(112, CH_SWITCHER);  // 1 Compressor
+    MIDI.sendProgramChange(103, CH_SWITCHER);  // 0 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
+
     setDisplay(F("ACSTC"), F("LOW G"), 4);
 }
 
 void preset_2_3()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(112, 16);  // 1 Compressor
-    MIDI.sendProgramChange(103, 16);  // 0 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(115, 16);  // 1 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(0, 1);     // ModFactor Volume Pedal
-    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, CH_SWITCHER);  // 1 Compressor
+    MIDI.sendProgramChange(103, CH_SWITCHER);  // 0 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
+
     setDisplay(F("DRIVE"), F("LOW G"), 4);
 }
 
 void preset_2_4()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(112, 16);  // 1 Compressor
-    MIDI.sendProgramChange(113, 16);  // 1 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(115, 16);  // 1 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(0, 1);     // ModFactor Volume Pedal
-    MIDI.sendProgramChange(1 - 1, 2); // EQ Lead Boost
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, CH_SWITCHER);  // 1 Compressor
+    MIDI.sendProgramChange(113, CH_SWITCHER);  // 1 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
+    MIDI.sendProgramChange(1 - 1, CH_EQ);      // EQ Lead Boost
+
     setDisplay(F("LEAD"), F("LOW G"), 4);
 }
 
 void preset_3_1()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(112, 16);  // 1 Compressor
-    MIDI.sendProgramChange(113, 16);  // 1 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(105, 16);  // 0 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(0, 1);     // ModFactor Volume Pedal
-    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, CH_SWITCHER);  // 1 Compressor
+    MIDI.sendProgramChange(113, CH_SWITCHER);  // 1 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
+
     setDisplay(F("CLEAN"), F("HI G"), 4);
 }
 
 void preset_3_2()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(112, 16);  // 1 Compressor
-    MIDI.sendProgramChange(103, 16);  // 0 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(115, 16);  // 1 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(0, 1);     // ModFactor Volume Pedal
-    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, CH_SWITCHER);  // 1 Compressor
+    MIDI.sendProgramChange(103, CH_SWITCHER);  // 0 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
+
     setDisplay(F("CRNCH"), F("HI G"), 4);
 }
 
 void preset_3_3()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(102, 16);  // 0 Compressor
-    MIDI.sendProgramChange(103, 16);  // 0 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(105, 16);  // 0 CrunchBox
-    MIDI.sendProgramChange(116, 16);  // 1 BE-OD
-    MIDI.sendProgramChange(0, 1);     // ModFactor Volume Pedal
-    MIDI.sendProgramChange(2 - 1, 2); // EQ Mid Drop
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(102, CH_SWITCHER);  // 0 Compressor
+    MIDI.sendProgramChange(103, CH_SWITCHER);  // 0 Booster
+    MIDI.sendProgramChange(116, CH_SWITCHER);  // 1 BE-OD
+    MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
+    MIDI.sendProgramChange(2 - 1, CH_EQ);      // EQ Mid Drop
+
     setDisplay(F("DRIVE"), F("HI G"), 4);
 }
 
 void preset_3_4()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(112, 16);  // 1 Compressor
-    MIDI.sendProgramChange(113, 16);  // 1 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(105, 16);  // 0 CrunchBox
-    MIDI.sendProgramChange(116, 16);  // 1 BE-OD
-    MIDI.sendProgramChange(0, 1);     // ModFactor Volume Pedal
-    MIDI.sendProgramChange(1 - 1, 2); // EQ Lead Boost
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, CH_SWITCHER);  // 1 Compressor
+    MIDI.sendProgramChange(113, CH_SWITCHER);  // 1 Booster
+    MIDI.sendProgramChange(116, CH_SWITCHER);  // 1 BE-OD
+    MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
+    MIDI.sendProgramChange(1 - 1, CH_EQ);      // EQ Lead Boost
+
     setDisplay(F("LEAD"), F("HI G"), 4);
 }
 
 void preset_4_1()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(102, 16);  // 0 Compressor
-    MIDI.sendProgramChange(103, 16);  // 0 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(105, 16);  // 0 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(0, 1);     // ModFactor Volume Pedal
-    MIDI.sendProgramChange(3 - 1, 2); // EQ Sparkle
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(102, CH_SWITCHER);  // 0 Compressor
+    MIDI.sendProgramChange(103, CH_SWITCHER);  // 0 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
+    MIDI.sendProgramChange(3 - 1, CH_EQ);      // EQ Sparkle
+
     setDisplay(F("CLEAN"), F("F/POP"), 4);
 }
 
 void preset_4_2()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(112, 16);  // 1 Compressor
-    MIDI.sendProgramChange(103, 16);  // 0 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(105, 16);  // 0 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(0, 1);     // ModFactor Volume Pedal
-    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, CH_SWITCHER);  // 1 Compressor
+    MIDI.sendProgramChange(103, CH_SWITCHER);  // 0 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
+    MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
+
     setDisplay(F("SQSHD"), F("F/POP"), 4);
 }
 
 void preset_4_3()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(112, 16);  // 1 Compressor
-    MIDI.sendProgramChange(103, 16);  // 0 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(105, 16);  // 0 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(9, 1);     // ModFactor Auto Filter
-    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(112, CH_SWITCHER);  // 1 Compressor
+    MIDI.sendProgramChange(103, CH_SWITCHER);  // 0 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(9, CH_MODFACTOR);   // ModFactor Auto Filter
+    MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
+
     setDisplay(F("F WAH"), F("F/POP"), 4);
 }
 
 void preset_4_4()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(102, 16);  // 1 Compressor
-    MIDI.sendProgramChange(103, 16);  // 1 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(105, 16);  // 0 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(4, 1);     // ModFactor Uni-Vibe
-    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(102, CH_SWITCHER);  // 1 Compressor
+    MIDI.sendProgramChange(103, CH_SWITCHER);  // 1 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(4, CH_MODFACTOR);   // ModFactor Uni-Vibe
+    MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
+
     setDisplay(F("PHASD"), F("F/POP"), 4);
 }
 
 void preset_5_1()
 {
-    MIDI.sendProgramChange(111, 16);  // 1 Acoustic Sim
-    MIDI.sendProgramChange(112, 16);  // 1 Compressor
-    MIDI.sendProgramChange(113, 16);  // 1 Booster
-    MIDI.sendProgramChange(114, 16);  // 1 Zendrive
-    MIDI.sendProgramChange(115, 16);  // 1 CrunchBox
-    MIDI.sendProgramChange(116, 16);  // 1 BE-OD
-    MIDI.sendProgramChange(117, 16);  // 1 Switch 1
-    MIDI.sendProgramChange(118, 16);  // 1 Switch 2
-    MIDI.sendProgramChange(125, 1);   // ModFactor Bypass
-    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    MIDI.sendProgramChange(111, CH_SWITCHER);  // 1 Acoustic Sim
+    MIDI.sendProgramChange(112, CH_SWITCHER);  // 1 Compressor
+    MIDI.sendProgramChange(113, CH_SWITCHER);  // 1 Booster
+    MIDI.sendProgramChange(116, CH_SWITCHER);  // 1 BE-OD
+    MIDI.sendProgramChange(125, CH_MODFACTOR); // ModFactor Bypass
+    MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
+
     setDisplay(F("SWTCH"), F("ALLON"), 4);
 }
 
 void preset_5_2()
 {
-    MIDI.sendProgramChange(101, 16);  // 0 Acoustic Sim
-    MIDI.sendProgramChange(102, 16);  // 0 Compressor
-    MIDI.sendProgramChange(103, 16);  // 0 Booster
-    MIDI.sendProgramChange(104, 16);  // 0 Zendrive
-    MIDI.sendProgramChange(105, 16);  // 0 CrunchBox
-    MIDI.sendProgramChange(106, 16);  // 0 BE-OD
-    MIDI.sendProgramChange(107, 16);  // 0 Switch 1
-    MIDI.sendProgramChange(108, 16);  // 0 Switch 2
-    MIDI.sendProgramChange(125, 1);   // ModFactor Bypass
-    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
+    MIDI.sendProgramChange(102, CH_SWITCHER);  // 0 Compressor
+    MIDI.sendProgramChange(103, CH_SWITCHER);  // 0 Booster
+    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(125, CH_MODFACTOR); // ModFactor Bypass
+    MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
+
     setDisplay(F("SWTCH"), F("ALLOFF"), 4);
 }
 
 void preset_5_3()
 {
-    MIDI.sendProgramChange(125, 1);   // ModFactor Bypass
-    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    MIDI.sendProgramChange(125, CH_MODFACTOR); // ModFactor Bypass
+    MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
 }
 
 void preset_5_4()
 {
-    MIDI.sendProgramChange(0, 16);    // Switcher Reset
-    MIDI.sendProgramChange(125, 1);   // ModFactor Bypass
-    MIDI.sendProgramChange(5 - 1, 2); // EQ Bypass
+    MIDI.sendProgramChange(0, CH_SWITCHER);    // Switcher Reset
+    delay(1000);
+    // Disable Unused Switcher Relays
+    for (byte i = 0; i < NUM_RELAYS_UNUSED; i++)
+        MIDI.sendProgramChange(100 + SW_RELAYS_UNUSED[i], CH_SWITCHER);
+
+    MIDI.sendProgramChange(125, CH_MODFACTOR); // ModFactor Bypass
+    MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
+
     setDisplay(F("SWTCH"), F("RESET"), 4);
 }
 
@@ -838,108 +830,109 @@ void preset_9_4()
 
 void command_1()
 {
-    if (!command_1_sent)
+    if (!command_sent[1 - 1])
     {
-        MIDI.sendProgramChange(2, 1); // ModFactor Chorus
+        MIDI.sendProgramChange(2, CH_MODFACTOR);   // ModFactor Chorus
         setDisplay(F("CHORS"), F("ON"), 4);
     }
     else
     {
-        MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+        MIDI.sendProgramChange(125, CH_MODFACTOR); // ModFactor Bypass
         setDisplay(F("CHORS"), F("OFF"), 4);
     }
-    command_1_sent = !command_1_sent;
+    command_sent[1 - 1] = !command_sent[1 - 1];
 }
 
 void command_2()
 {
-    if (!command_2_sent)
+    if (!command_sent[2 - 1])
     {
-        MIDI.sendProgramChange(3, 1); // ModFactor Phaser
+        MIDI.sendProgramChange(3, CH_MODFACTOR);   // ModFactor Phaser
         setDisplay(F("PHASR"), F("ON"), 4);
     }
     else
     {
-        MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+        MIDI.sendProgramChange(125, CH_MODFACTOR); // ModFactor Bypass
         setDisplay(F("PHASR"), F("OFF"), 4);
     }
-    command_2_sent = !command_2_sent;
+    command_sent[2 - 1] = !command_sent[2 - 1];
 }
 
 void command_3()
 {
-    if (!command_3_sent)
+    if (!command_sent[3 - 1])
     {
-        MIDI.sendProgramChange(11, 1); // ModFactor Rotary
+        MIDI.sendProgramChange(11, CH_MODFACTOR);  // ModFactor Rotary
         setDisplay(F("ROTRY"), F("ON"), 4);
     }
     else
     {
-        MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+        MIDI.sendProgramChange(125, CH_MODFACTOR); // ModFactor Bypass
         setDisplay(F("ROTRY"), F("OFF"), 4);
     }
-    command_3_sent = !command_3_sent;
+    command_sent[3 - 1] = !command_sent[3 - 1];
 }
 
 void command_4()
 {
-    if (!command_4_sent)
+    if (!command_sent[4 - 1])
     {
-        MIDI.sendProgramChange(13, 1); // ModFactor Tremolo
+        MIDI.sendProgramChange(13, CH_MODFACTOR);  // ModFactor Tremolo
         setDisplay(F("TREM"), F("ON"), 4);
     }
     else
     {
-        MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+        MIDI.sendProgramChange(125, CH_MODFACTOR); // ModFactor Bypass
         setDisplay(F("TREM"), F("OFF"), 4);
     }
-    command_4_sent = !command_4_sent;
+    command_sent[4 - 1] = !command_sent[4 - 1];
 }
 
 void command_5()
 {
-    if (!command_5_sent)
+    if (!command_sent[5 - 1])
     {
-        MIDI.sendProgramChange(5, 1); // ModFactor Wah
+        MIDI.sendProgramChange(5, CH_MODFACTOR);   // ModFactor Wah
         setDisplay(F("WAH"), F("ON"), 4);
     }
     else
     {
-        MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+        MIDI.sendProgramChange(125, CH_MODFACTOR); // ModFactor Bypass
         setDisplay(F("WAH"), F("OFF"), 4);
     }
-    command_5_sent = !command_5_sent;
+    command_sent[5 - 1] = !command_sent[5 - 1];
 }
 
 void command_6()
 {
-    if (!command_6_sent)
+    if (!command_sent[6 - 1])
     {
-        MIDI.sendProgramChange(7, 1); // ModFactor Flanger
+        MIDI.sendProgramChange(7, CH_MODFACTOR);  // ModFactor Flanger
         setDisplay(F("FLNGR"), F("ON"), 4);
     }
     else
     {
-        MIDI.sendProgramChange(125, 1); // ModFactor Bypass
+        MIDI.sendProgramChange(125, CH_MODFACTOR); // ModFactor Bypass
         setDisplay(F("FLNGR"), F("OFF"), 4);
     }
-    command_6_sent = !command_6_sent;
+    command_sent[6 - 1] = !command_sent[6 - 1];
 }
 
 void command_7()
 {
-    if (!command_7_sent)
+    if (!command_sent[7 - 1])
     {
-        MIDI.sendProgramChange(113, 16); // Booster
+        MIDI.sendProgramChange(113, CH_SWITCHER); // Booster
         setDisplay(F("BOOST"), F("ON"), 4);
     }
     else
     {
-        MIDI.sendProgramChange(103, 16); // Booster
+        MIDI.sendProgramChange(103, CH_SWITCHER); // Booster
         setDisplay(F("BOOST"), F("OFF"), 4);
     }
-    command_7_sent = !command_7_sent;
+    command_sent[7 - 1] = !command_sent[7 - 1];
 }
+
 
 void setDisplay(const __FlashStringHelper *msg, byte textSize_)
 {
@@ -1010,44 +1003,6 @@ void msgFlicker(long flickerTime, int flickerCount, byte *message)
     }
 }
 
-// uint16_t runningAverage(uint16_t value)
-// {
-//     const uint8_t averageLength = 4;
-
-//     // https://playground.arduino.cc/Main/RunningAverage
-//     static uint16_t previousValues[averageLength];
-//     static uint8_t index = 0;
-//     static uint16_t sum = 0;
-//     static uint8_t filled = 0;
-
-//     sum -= previousValues[index];
-//     previousValues[index] = value;
-//     sum += value;
-//     index++;
-//     index = index % averageLength;
-//     if (filled < averageLength)
-//         filled++;
-
-//     return sum / filled;
-// }
-
-// void handleExpression(byte controller, byte channel)
-// {
-//     static uint8_t previousValue = 0b10000000;
-
-//     uint16_t analogValue = analogRead(EXPR_PIN);
-//     // analogValue = runningAverage(analogValue);
-//     // uint8_t CC_value = analogValue >> 3;
-
-//     uint8_t CC_value = hysteresisFilter(analogValue);
-
-//     if (CC_value != previousValue)
-//     {
-//         MIDI.sendControlChange(controller, CC_value, channel);
-//         previousValue = CC_value;
-//     }
-// }
-
 void handleExpression(byte controller, byte channel)
 {
     static uint8_t previousValue = 0b10000000;
@@ -1065,40 +1020,38 @@ void handleExpression(byte controller, byte channel)
     }
 }
 
+// uint8_t hysteresisFilter(uint16_t inputLevel)
+// {
 
+//     const uint16_t margin = 4;                 //  +/- 2
+//     const uint16_t numberOfLevelsOutput = 128; // 128 => 0..127  ( power of 2 ideally  )
 
-uint8_t hysteresisFilter(uint16_t inputLevel)
-{
+//     // number of discrete input values.
+//     // 8 bit ADC = 256, 9 bit ADC = 512, 10 bit ADC = 1024, 11 bit ADC = 2048, 12 bit ADC = 4096
+//     const uint16_t numberOfInputValues = 1024; //  0..1023 (power of 2 ideally )
 
-    const uint16_t margin = 4;                 //  +/- 2
-    const uint16_t numberOfLevelsOutput = 128; // 128 => 0..127  ( power of 2 ideally  )
+//     // initial output level (usually zero)
+//     const uint16_t initialOutputLevel = 0;
+//     // ========================================
 
-    // number of discrete input values.
-    // 8 bit ADC = 256, 9 bit ADC = 512, 10 bit ADC = 1024, 11 bit ADC = 2048, 12 bit ADC = 4096
-    const uint16_t numberOfInputValues = 1024; //  0..1023 (power of 2 ideally )
+//     // the current output level is retained for the next calculation.
+//     // Note: initial value of a static variable is set at compile time.
+//     static uint16_t currentOutputLevel = initialOutputLevel;
 
-    // initial output level (usually zero)
-    const uint16_t initialOutputLevel = 0;
-    // ========================================
+//     // get lower and upper bounds for currentOutputLevel
+//     uint16_t lb = (float)((float)numberOfInputValues / numberOfLevelsOutput) * currentOutputLevel;
+//     if (currentOutputLevel > 0)
+//         lb -= margin; // subtract margin
 
-    // the current output level is retained for the next calculation.
-    // Note: initial value of a static variable is set at compile time.
-    static uint16_t currentOutputLevel = initialOutputLevel;
-
-    // get lower and upper bounds for currentOutputLevel
-    uint16_t lb = (float)((float)numberOfInputValues / numberOfLevelsOutput) * currentOutputLevel;
-    if (currentOutputLevel > 0)
-        lb -= margin; // subtract margin
-
-    uint16_t ub = (((float)((float)numberOfInputValues / numberOfLevelsOutput) * (currentOutputLevel + 1)) - 1);
-    if (currentOutputLevel < numberOfLevelsOutput)
-        ub += margin; // add margin
-                      // now test if input is outside the outer margins for current output value
-                      // If so, calculate new output level.
-    if (inputLevel < lb || inputLevel > ub)
-    {
-        // determine new output level
-        currentOutputLevel = (((float)inputLevel * (float)numberOfLevelsOutput) / numberOfInputValues);
-    }
-    return currentOutputLevel;
-}
+//     uint16_t ub = (((float)((float)numberOfInputValues / numberOfLevelsOutput) * (currentOutputLevel + 1)) - 1);
+//     if (currentOutputLevel < numberOfLevelsOutput)
+//         ub += margin; // add margin
+//                       // now test if input is outside the outer margins for current output value
+//                       // If so, calculate new output level.
+//     if (inputLevel < lb || inputLevel > ub)
+//     {
+//         // determine new output level
+//         currentOutputLevel = (((float)inputLevel * (float)numberOfLevelsOutput) / numberOfInputValues);
+//     }
+//     return currentOutputLevel;
+// }
