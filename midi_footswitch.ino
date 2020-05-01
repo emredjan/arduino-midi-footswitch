@@ -5,18 +5,21 @@
 #include <Wire.h>             // Needed to drive OLED display
 #include <Adafruit_SSD1306.h> // Needed to drive OLED display
 
-#include <SingleEMAFilterLib.h>
 
+/* Needed for expression logic, will be implemented later
+#include <SingleEMAFilterLib.h>
 SingleEMAFilter<int> singleEMAFilter(0.3);
+bool expressionEnabled = false;
+byte expressionCC = 11;
+byte expressionChannel = 1;
+const byte EXPR_PIN = A0;
+*/
 
 MIDI_CREATE_DEFAULT_INSTANCE();
 
 const byte BUTTON_PINS[] = {12, 11, A3, A2, A1, 3};
 const byte LED_PINS[] = {7, 6, 5, 4};
 const byte NUM_LEDS = 4;
-
-const byte EXPR_PIN = A0;
-const byte EXPR_5V_PIN = 2;
 
 const byte SR_NUM_REGISTERS = 3;
 const byte SR_SDI_PIN = 8;
@@ -49,10 +52,6 @@ ShiftRegister74HC595<SR_NUM_REGISTERS> sr(SR_SDI_PIN, SR_SCLK_PIN, SR_LOAD_PIN);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
 
 bool command_sent[7] = {0, 0, 0, 0, 0, 0, 0};
-
-bool expressionEnabled = false;
-byte expressionCC = 100;
-byte expressionChannel = 2;
 
 byte numberB[] = {
     B11000000, //0
@@ -87,8 +86,9 @@ const byte CH_SWITCHER = 16;
 void setup()
 {
 
-    analogReference(DEFAULT);
-    expressionEnabled = false;
+    // Needed for expression logic, will be implemented later
+    // analogReference(EXTERNAL);
+    // expressionEnabled = false;
 
     for (byte i = 0; i < NUM_LEDS; i++)
         pinMode(LED_PINS[i], OUTPUT);
@@ -157,8 +157,9 @@ void loop()
     button5.read();
     button6.read();
 
-    if (expressionEnabled)
-        handleExpression(expressionCC, expressionChannel);
+    // Needed for expression logic, will be implemented later
+    // if (expressionEnabled)
+        // handleExpression(expressionCC, expressionChannel);
 
     switch (STATE)
     {
@@ -544,7 +545,7 @@ void preset_1_2()
 {
     MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
     MIDI.sendProgramChange(112, CH_SWITCHER);  // 1 Compressor
-    MIDI.sendProgramChange(103, CH_SWITCHER);  // 0 Booster
+    MIDI.sendProgramChange(113, CH_SWITCHER);  // 1 Booster
     MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
     MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
     MIDI.sendProgramChange(5 - 1, CH_EQ);      // EQ Bypass
@@ -557,7 +558,7 @@ void preset_1_3()
     MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
     MIDI.sendProgramChange(102, CH_SWITCHER);  // 0 Compressor
     MIDI.sendProgramChange(103, CH_SWITCHER);  // 0 Booster
-    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(116, CH_SWITCHER);  // 1 BE-OD
     MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
     MIDI.sendProgramChange(2 - 1, CH_EQ);      // EQ MID Drop
 
@@ -569,7 +570,7 @@ void preset_1_4()
     MIDI.sendProgramChange(101, CH_SWITCHER);  // 0 Acoustic Sim
     MIDI.sendProgramChange(112, CH_SWITCHER);  // 1 Compressor
     MIDI.sendProgramChange(113, CH_SWITCHER);  // 1 Booster
-    MIDI.sendProgramChange(106, CH_SWITCHER);  // 0 BE-OD
+    MIDI.sendProgramChange(116, CH_SWITCHER);  // 1 BE-OD
     MIDI.sendProgramChange(0, CH_MODFACTOR);   // ModFactor Volume Pedal
     MIDI.sendProgramChange(1 - 1, CH_EQ);      // EQ Lead Boost
 
@@ -1003,6 +1004,7 @@ void msgFlicker(long flickerTime, int flickerCount, byte *message)
     }
 }
 
+/* Needed for expression logic, will be implemented later
 void handleExpression(byte controller, byte channel)
 {
     static uint8_t previousValue = 0b10000000;
@@ -1019,39 +1021,4 @@ void handleExpression(byte controller, byte channel)
         previousValue = CC_value;
     }
 }
-
-// uint8_t hysteresisFilter(uint16_t inputLevel)
-// {
-
-//     const uint16_t margin = 4;                 //  +/- 2
-//     const uint16_t numberOfLevelsOutput = 128; // 128 => 0..127  ( power of 2 ideally  )
-
-//     // number of discrete input values.
-//     // 8 bit ADC = 256, 9 bit ADC = 512, 10 bit ADC = 1024, 11 bit ADC = 2048, 12 bit ADC = 4096
-//     const uint16_t numberOfInputValues = 1024; //  0..1023 (power of 2 ideally )
-
-//     // initial output level (usually zero)
-//     const uint16_t initialOutputLevel = 0;
-//     // ========================================
-
-//     // the current output level is retained for the next calculation.
-//     // Note: initial value of a static variable is set at compile time.
-//     static uint16_t currentOutputLevel = initialOutputLevel;
-
-//     // get lower and upper bounds for currentOutputLevel
-//     uint16_t lb = (float)((float)numberOfInputValues / numberOfLevelsOutput) * currentOutputLevel;
-//     if (currentOutputLevel > 0)
-//         lb -= margin; // subtract margin
-
-//     uint16_t ub = (((float)((float)numberOfInputValues / numberOfLevelsOutput) * (currentOutputLevel + 1)) - 1);
-//     if (currentOutputLevel < numberOfLevelsOutput)
-//         ub += margin; // add margin
-//                       // now test if input is outside the outer margins for current output value
-//                       // If so, calculate new output level.
-//     if (inputLevel < lb || inputLevel > ub)
-//     {
-//         // determine new output level
-//         currentOutputLevel = (((float)inputLevel * (float)numberOfLevelsOutput) / numberOfInputValues);
-//     }
-//     return currentOutputLevel;
-// }
+*/
