@@ -105,6 +105,10 @@ byte tapCounter = 0;
 
 bool midiClockState = false;
 
+unsigned long prevBlink = 0UL;
+bool ledState = 0;
+
+
 void setup()
 {
 
@@ -197,7 +201,10 @@ void loop()
         tapCounter = 0;
 
     if (midiClockState)
+    {
         handleMidiClock();
+        handleTempoLed();
+    }
 
     switch (STATE)
     {
@@ -1044,6 +1051,7 @@ void command_6()
     command_sent[6 - 1] = !command_sent[6 - 1];
 }
 
+
 void command_7()
 {
     tapTempo();
@@ -1272,6 +1280,20 @@ void handleMidiClock()
     {
         prevTime += usPerTick;
         MIDI.sendRealTime(MIDI_RT_CLOCK);
+    }
+}
+
+
+void handleTempoLed()
+{
+    if (micros() - prevBlink >= usPerTick * 12)
+    {
+        ledState = !ledState;
+        prevBlink += usPerTick * 12;
+        sr.set(7, !ledState);
+        sr.set(15, !ledState);
+        sr.set(23, !ledState);
+        // digitalWrite(LED_PIN_, ledState);
     }
 }
 
