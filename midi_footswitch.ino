@@ -1290,10 +1290,11 @@ void handleTempoLed()
     {
         ledState = !ledState;
         prevBlink += usPerTick * 12;
+        // set 7 segment dots for tempo display
         sr.set(7, !ledState);
         sr.set(15, !ledState);
         sr.set(23, !ledState);
-        // digitalWrite(LED_PIN_, ledState);
+
     }
 }
 
